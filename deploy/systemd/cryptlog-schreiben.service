@@ -1,0 +1,50 @@
+[Unit]
+Description=CryptLog Schreibprozess
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# Ein Prozess unter diesem Konto. Ein zweiter Start unterbleibt, solange er läuft.
+# Der Spool liegt im StateDirectory und wird beim Neustart nicht gelöscht.
+# Geheimnisse nennt die Konfiguration. Sie liegen auf dem tmpfs unter /run, nicht in dieser Unit.
+# TimeoutStopSec ist mindestens die Segment-Wartezeit plus 30 Sekunden. frist lehnt Kürzeres ab.
+Type=simple
+User=cryptlog-schreiben
+Group=cryptlog-schreiben
+UMask=0077
+WorkingDirectory=/var/lib/cryptlog/schreiben
+StateDirectory=cryptlog/schreiben
+StateDirectoryMode=0700
+ConfigurationDirectory=cryptlog
+ConfigurationDirectoryMode=0755
+ExecStart=/usr/bin/cryptlog schreiben /etc/cryptlog/schreiben.conf
+ExecStartPre=+/bin/sh /usr/lib/cryptlog/frist /etc/cryptlog/schreiben.conf cryptlog-schreiben.service
+Restart=always
+RestartSec=5s
+KillSignal=SIGTERM
+KillMode=process
+TimeoutStopSec=390
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cryptlog-schreiben
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RemoveIPC=yes
+
+[Install]
+WantedBy=multi-user.target

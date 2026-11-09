@@ -1,0 +1,244 @@
+{{- include "cryptlog.grenzen" . -}}
+{{- if .Values.schreiben.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Release.Name }}-schreiben
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: cryptlog
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: schreiben
+automountServiceAccountToken: false
+{{- range .Values.schreiben.instanzen }}
+{{- $id := toString . }}
+{{- $name := printf "%s-schreiben-%s" $.Release.Name (substr 0 12 $id) }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: cryptlog
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/component: schreiben
+    cryptlog/instanz: {{ $id }}
+data:
+  schreiben.conf: |
+{{ include "cryptlog.schreiben.conf" (dict "root" $ "instanz" $id) | indent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: cryptlog
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/component: schreiben
+    cryptlog/instanz: {{ $id }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ $.Release.Name }}
+      app.kubernetes.io/component: schreiben
+      cryptlog/instanz: {{ $id }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cryptlog
+        app.kubernetes.io/instance: {{ $.Release.Name }}
+        app.kubernetes.io/component: schreiben
+        cryptlog/instanz: {{ $id }}
+      annotations:
+        cryptlog/konfig: {{ include "cryptlog.schreiben.conf" (dict "root" $ "instanz" $id) | sha256sum }}
+    spec:
+      serviceAccountName: {{ $.Release.Name }}-schreiben
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      hostNetwork: false
+      hostPID: false
+      hostIPC: false
+      shareProcessNamespace: false
+      terminationGracePeriodSeconds: {{ $.Values.beendenS }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: {{ $.Values.schreiben.uid }}
+        runAsGroup: {{ $.Values.schreiben.uid }}
+        fsGroup: {{ $.Values.schreiben.uid }}
+        seccompProfile:
+          type: RuntimeDefault
+      {{- with $.Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: schreiben
+          image: {{ printf "%s@%s" $.Values.image.repository $.Values.image.digest | quote }}
+          imagePullPolicy: IfNotPresent
+          args: ["schreiben", "/etc/cryptlog/schreiben.conf"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            privileged: false
+            runAsNonRoot: true
+            runAsUser: {{ $.Values.schreiben.uid }}
+            runAsGroup: {{ $.Values.schreiben.uid }}
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: ereignis
+              containerPort: {{ $.Values.schreiben.ereignisPort }}
+              protocol: TCP
+            - name: metrik
+              containerPort: {{ $.Values.schreiben.metrikPort }}
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: metrik
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: metrik
+          resources:
+            requests:
+              memory: {{ include "cryptlog.zahl" $.Values.schreiben.speicher | quote }}
+            limits:
+              memory: {{ include "cryptlog.zahl" $.Values.schreiben.speicher | quote }}
+          volumeMounts:
+            - name: spool
+              mountPath: /var/lib/cryptlog/spool
+            - name: mandanten
+              mountPath: /var/lib/cryptlog/mandanten
+              readOnly: true
+            - name: geheim
+              mountPath: /run/cryptlog/geheim
+              readOnly: true
+            - name: konfig
+              mountPath: /etc/cryptlog/schreiben.conf
+              subPath: schreiben.conf
+              readOnly: true
+            {{- if eq $.Values.ziel.art "platte" }}
+            - name: ziel
+              mountPath: /var/lib/cryptlog/ziel
+            {{- end }}
+      volumes:
+        - name: spool
+          emptyDir:
+            sizeLimit: {{ include "cryptlog.zahl" $.Values.grenzen.spoolGrenze | quote }}
+        - name: konfig
+          configMap:
+            name: {{ $name }}
+            defaultMode: 292
+        - name: mandanten
+          persistentVolumeClaim:
+            claimName: {{ $.Values.mandanten.claim }}
+        - name: geheim
+          projected:
+            defaultMode: 256
+            sources:
+              - secret:
+                  name: {{ $.Values.schreiben.geheim.plattform.name }}
+                  items:
+                    - key: {{ $.Values.schreiben.geheim.plattform.key }}
+                      path: plattform
+              - secret:
+                  name: {{ $.Values.schreiben.geheim.cache.name }}
+                  items:
+                    - key: {{ $.Values.schreiben.geheim.cache.key }}
+                      path: cache
+              - secret:
+                  name: {{ $.Values.schreiben.geheim.index.name }}
+                  items:
+                    - key: {{ $.Values.schreiben.geheim.index.key }}
+                      path: index
+              - secret:
+                  name: {{ $.Values.schreiben.geheim.signatur.name }}
+                  items:
+                    - key: {{ $.Values.schreiben.geheim.signatur.key }}
+                      path: signatur
+              {{- if eq $.Values.ziel.art "s3" }}
+              - secret:
+                  name: {{ $.Values.ziel.zugang.name }}
+                  items:
+                    - key: {{ $.Values.ziel.zugang.key }}
+                      path: zugang
+              - secret:
+                  name: {{ $.Values.ziel.geheimnis.name }}
+                  items:
+                    - key: {{ $.Values.ziel.geheimnis.key }}
+                      path: geheimnis
+              {{- end }}
+        {{- if eq $.Values.ziel.art "platte" }}
+        - name: ziel
+          persistentVolumeClaim:
+            claimName: {{ $.Values.ziel.claim }}
+        {{- end }}
+{{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-schreiben
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: cryptlog
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: schreiben
+spec:
+  selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: schreiben
+  ports:
+    - name: ereignis
+      port: {{ .Values.schreiben.ereignisPort }}
+      targetPort: ereignis
+      protocol: TCP
+    - name: metrik
+      port: {{ .Values.schreiben.metrikPort }}
+      targetPort: metrik
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-schreiben
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: cryptlog
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: schreiben
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: schreiben
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        {{- range .Values.schreiben.aufrufer }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .namespace | quote }}
+          {{- with .labels }}
+          podSelector:
+            matchLabels:
+              {{- toYaml . | nindent 14 }}
+          {{- end }}
+        {{- end }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.schreiben.ereignisPort }}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.schreiben.ueberwachung | quote }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.schreiben.metrikPort }}
+{{- end }}

@@ -1,0 +1,2 @@
+u cryptlog-schreiben - "CryptLog Schreibprozess" /var/lib/cryptlog/schreiben /usr/sbin/nologin
+u cryptlog-suchen - "CryptLog Suchprozess" /var/lib/cryptlog/suchen /usr/sbin/nologin

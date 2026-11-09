@@ -1,0 +1,5 @@
+.git
+testumgebung
+deploy
+docs
+**/*_test.go

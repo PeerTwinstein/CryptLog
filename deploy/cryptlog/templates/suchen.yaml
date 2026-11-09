@@ -1,0 +1,228 @@
+{{- include "cryptlog.grenzen" . -}}
+{{- if .Values.suchen.enabled }}
+{{- $id := toString .Values.suchen.instanz }}
+{{- $name := printf "%s-suchen" .Release.Name }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: cryptlog
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: suchen
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: cryptlog
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: suchen
+data:
+  suchen.conf: |
+{{ include "cryptlog.suchen.conf" (dict "root" $ "instanz" $id) | indent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: cryptlog
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: suchen
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: suchen
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cryptlog
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: suchen
+        cryptlog/instanz: {{ $id }}
+      annotations:
+        cryptlog/konfig: {{ include "cryptlog.suchen.conf" (dict "root" $ "instanz" $id) | sha256sum }}
+    spec:
+      serviceAccountName: {{ $name }}
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      hostNetwork: false
+      hostPID: false
+      hostIPC: false
+      shareProcessNamespace: false
+      terminationGracePeriodSeconds: {{ .Values.beendenS }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: {{ .Values.suchen.uid }}
+        runAsGroup: {{ .Values.suchen.uid }}
+        fsGroup: {{ .Values.suchen.uid }}
+        seccompProfile:
+          type: RuntimeDefault
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: suchen
+          image: {{ printf "%s@%s" .Values.image.repository .Values.image.digest | quote }}
+          imagePullPolicy: IfNotPresent
+          args: ["suchen", "/etc/cryptlog/suchen.conf"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            privileged: false
+            runAsNonRoot: true
+            runAsUser: {{ .Values.suchen.uid }}
+            runAsGroup: {{ .Values.suchen.uid }}
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: suche
+              containerPort: {{ .Values.suchen.suchePort }}
+              protocol: TCP
+            - name: metrik
+              containerPort: {{ .Values.suchen.metrikPort }}
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: metrik
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: metrik
+          resources:
+            requests:
+              memory: {{ include "cryptlog.zahl" .Values.suchen.speicher | quote }}
+            limits:
+              memory: {{ include "cryptlog.zahl" .Values.suchen.speicher | quote }}
+          volumeMounts:
+            - name: protokoll
+              mountPath: /var/lib/cryptlog/protokoll
+            - name: mandanten
+              mountPath: /var/lib/cryptlog/mandanten
+              readOnly: true
+            - name: geheim
+              mountPath: /run/cryptlog/geheim
+              readOnly: true
+            - name: konfig
+              mountPath: /etc/cryptlog/suchen.conf
+              subPath: suchen.conf
+              readOnly: true
+            {{- if eq .Values.ziel.art "platte" }}
+            - name: ziel
+              mountPath: /var/lib/cryptlog/ziel
+            {{- end }}
+      volumes:
+        - name: protokoll
+          emptyDir: {}
+        - name: konfig
+          configMap:
+            name: {{ $name }}
+            defaultMode: 292
+        - name: mandanten
+          persistentVolumeClaim:
+            claimName: {{ .Values.mandanten.claim }}
+        - name: geheim
+          projected:
+            defaultMode: 256
+            sources:
+              - secret:
+                  name: {{ .Values.suchen.geheim.index.name }}
+                  items:
+                    - key: {{ .Values.suchen.geheim.index.key }}
+                      path: index
+              - secret:
+                  name: {{ .Values.suchen.geheim.signatur.name }}
+                  items:
+                    - key: {{ .Values.suchen.geheim.signatur.key }}
+                      path: signatur
+              {{- if eq .Values.ziel.art "s3" }}
+              - secret:
+                  name: {{ .Values.ziel.zugang.name }}
+                  items:
+                    - key: {{ .Values.ziel.zugang.key }}
+                      path: zugang
+              - secret:
+                  name: {{ .Values.ziel.geheimnis.name }}
+                  items:
+                    - key: {{ .Values.ziel.geheimnis.key }}
+                      path: geheimnis
+              {{- end }}
+        {{- if eq .Values.ziel.art "platte" }}
+        - name: ziel
+          persistentVolumeClaim:
+            claimName: {{ .Values.ziel.claim }}
+        {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: cryptlog
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: suchen
+spec:
+  selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: suchen
+  ports:
+    - name: suche
+      port: {{ .Values.suchen.suchePort }}
+      targetPort: suche
+      protocol: TCP
+    - name: metrik
+      port: {{ .Values.suchen.metrikPort }}
+      targetPort: metrik
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: cryptlog
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: suchen
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: suchen
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        {{- range .Values.suchen.weg }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .namespace | quote }}
+          {{- with .labels }}
+          podSelector:
+            matchLabels:
+              {{- toYaml . | nindent 14 }}
+          {{- end }}
+        {{- end }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.suchen.suchePort }}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.suchen.ueberwachung | quote }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.suchen.metrikPort }}
+{{- end }}

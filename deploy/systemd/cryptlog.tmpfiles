@@ -1,0 +1,5 @@
+d /var/lib/cryptlog/schreiben 0700 cryptlog-schreiben cryptlog-schreiben -
+d /var/lib/cryptlog/suchen 0700 cryptlog-suchen cryptlog-suchen -
+d /run/cryptlog/schreiben 0700 cryptlog-schreiben cryptlog-schreiben -
+d /run/cryptlog/suchen 0700 cryptlog-suchen cryptlog-suchen -
+d /etc/cryptlog 0755 root root -

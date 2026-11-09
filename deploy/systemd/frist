@@ -1,0 +1,89 @@
+#!/bin/sh
+# Lehnt den Start ab, wenn die Wartezeit der Unit kürzer ist als die
+# Segment-Wartezeit plus 30 Sekunden. Das zweite Argument ist der
+# Unit-Name oder TimeoutStopUSec in Mikrosekunden. infinity ist nicht kürzer.
+set -eu
+if [ "$#" -ne 2 ] || [ ! -f "$1" ]; then
+	echo "frist: konfig" >&2
+	exit 1
+fi
+config=$1
+angabe=$2
+case $angabe in
+infinity | [0-9]*)
+	warte=$angabe
+	;;
+*)
+	warte=$(systemctl show -p TimeoutStopUSec --value "$angabe")
+	;;
+esac
+awk -v warte="$warte" '
+function trim(s) {
+	gsub(/^[ \t\r]+/, "", s)
+	gsub(/[ \t\r]+$/, "", s)
+	return s
+}
+function einheit(u) {
+	if (u == "ns") return 1
+	if (u == "us" || u == "µs" || u == "μs") return 1000
+	if (u == "ms") return 1000000
+	if (u == "s") return 1000000000
+	if (u == "m") return 60000000000
+	if (u == "h") return 3600000000000
+	return 0
+}
+function dauer(s,   i, n, num, unit, base, total, c) {
+	n = length(s)
+	if (n == 0) return -1
+	i = 1
+	total = 0
+	while (i <= n) {
+		c = substr(s, i, 1)
+		if (c !~ /[0-9.]/) return -1
+		num = ""
+		while (i <= n && substr(s, i, 1) ~ /[0-9.]/) {
+			num = num substr(s, i, 1)
+			i++
+		}
+		if (num !~ /^[0-9]+(\.[0-9]+)?$/) return -1
+		unit = ""
+		while (i <= n && substr(s, i, 1) ~ /[A-Za-zµμ]/) {
+			unit = unit substr(s, i, 1)
+			i++
+		}
+		base = einheit(unit)
+		if (base == 0) return -1
+		total += num * base
+	}
+	return total
+}
+BEGIN { standard = 60 * 1000000000; gefunden = 0; seg = -1 }
+{
+	line = $0
+	sub(/\r$/, "", line)
+	if (line ~ /^[ \t]*($|#)/) next
+	eq = index(line, "=")
+	if (eq == 0) next
+	key = trim(substr(line, 1, eq - 1))
+	if (key != "segment_warte") next
+	gefunden++
+	seg = dauer(trim(substr(line, eq + 1)))
+}
+END {
+	if (gefunden > 1 || (gefunden == 1 && seg < 0)) {
+		print "frist: segment_warte" > "/dev/stderr"
+		exit 1
+	}
+	if (gefunden == 0) seg = standard
+	mindest = seg + 30 * 1000000000
+	if (warte == "infinity") exit 0
+	if (warte !~ /^[0-9]+$/) {
+		print "frist: wartezeit" > "/dev/stderr"
+		exit 1
+	}
+	if (warte * 1000 < mindest) {
+		print "frist: wartezeit" > "/dev/stderr"
+		exit 1
+	}
+}
+' "$config"

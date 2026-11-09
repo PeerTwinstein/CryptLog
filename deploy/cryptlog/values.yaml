@@ -1,0 +1,95 @@
+# Das Image ist über den Digest gebunden. Ein Tag erfüllt die Bindung nicht.
+image:
+  repository: ""
+  digest: ""
+  tag: ""
+
+imagePullSecrets: []
+
+# version und digest erscheinen nur gemeinsam in cryptlog_build_info.
+# Leer lässt beide aus der Konfiguration. Der Digest des Image bleibt gebunden.
+build:
+  version: ""
+
+# platte verlangt einen Anspruch, der nicht der Anspruch der Mandanten ist.
+# s3 verlangt Endpunkt, Bucket, Region und die beiden Secret-Dateien.
+ziel:
+  art: platte
+  claim: ""
+  endpunkt: ""
+  bucket: ""
+  region: ""
+  zugang:
+    name: ""
+    key: ""
+  geheimnis:
+    name: ""
+    key: ""
+
+mandanten:
+  claim: ""
+
+# Dieselben Grenzen wie der Schreibprozess. spoolGrenze und frist haben dort keine Vorgabe.
+grenzen:
+  puffer: 1048576
+  pufferWarteMs: 100
+  segment: 4194304
+  segmentWarteS: 60
+  klasse: 4194304
+  gruppeS: 3600
+  einzelS: 28800
+  sonstigeS: 3600
+  spoolGrenze: 67108864
+  fristS: 900
+
+# Mindestens die Segment-Wartezeit plus 30 Sekunden.
+# Der Prozess schreibt nach dem Signal noch bis zu sechs Minuten zu Ende.
+beendenS: 390
+
+schreiben:
+  enabled: true
+  # Jede Kennung ist eine Instanz mit eigenem Spool. 32 Hexzeichen, nicht null.
+  instanzen: []
+  ereignisPort: 8080
+  metrikPort: 8081
+  # Liegt über der Summe aus Puffer und Segmentpuffer.
+  speicher: 268435456
+  uid: 65532
+  geheim:
+    plattform:
+      name: ""
+      key: plattform.pem
+    cache:
+      name: ""
+      key: cache
+    index:
+      name: ""
+      key: index.pem
+    signatur:
+      name: ""
+      key: signatur.pem
+  # Ein gesetzter Wert lehnt das Chart ab. Der private Index-Schlüssel bleibt bei suchen.
+  indexPrivat: ""
+  aufrufer: []
+  ueberwachung: ""
+
+suchen:
+  enabled: true
+  replicas: 1
+  instanz: ""
+  suchePort: 8080
+  metrikPort: 8081
+  speicher: 268435456
+  uid: 65532
+  geheim:
+    index:
+      name: ""
+      key: index.pem
+    signatur:
+      name: ""
+      key: signatur.pem
+  # Gesetzte Werte lehnen das Chart ab.
+  plattform: ""
+  cache: ""
+  weg: []
+  ueberwachung: ""

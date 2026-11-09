@@ -1,0 +1,16 @@
+Kritikpunkte und Risiken
+Komplexität. Es gibt acht Strom-Rollen, Summenindizes, Belegungen, Instanzfristen, Generationen, Bindungsblobs und Füllplätze. Das erhöht die Implementierungs- und Fehlerfläche deutlich. Besonders der Wiederanlauf mit Generationen und Übernahme fremder Belegungen braucht formale Tests, etwa Modellprüfung oder Fault Injection.
+Zeitabhängige Instanzfrist. Die Übernahme einer Belegung hängt an Uhren (frist in Millisekunden). Ohne Schutz gegen Uhrabweichung oder einen langen GC- oder Netzwerk-Stillstand der Inhaberin sind zwei Schreiber denkbar. Die erneute Lesung der Belegung vor der Annahme mindert das, schließt aber das Fenster zwischen Lesen und Schreiben nicht. Das geht nur mit bedingten Schreibzugriffen (if-none-match, Compare-and-Swap). Ob alle Ziele das garantieren, sollte das Konzept festlegen.
+Mehrere Annahme- und Index-Strukturen als Abhängigkeit. Die Annahme verlangt Log, Verweise und Indexeintrag. Fehlt der Index-Schlüssel oder ist der Vorgangsindex gestört, nimmt der Dienst gar nichts an. Das ist konsequent, macht die Verfügbarkeit des Audit-Pfads aber von einer Nebenfunktion abhängig. Eine Abwägung dazu fehlt.
+Löschkonzept und Datenschutz. Das Konzept sagt offen, dass einzelne Personen nicht aus Gruppenepochen entfernt werden und Verzeichnis, Index und Summenindizes die Person bis zum Fristende behalten. Das ist für Audit-Logs vertretbar. Gegenüber Betroffenenrechten (Art. 17 DSGVO) braucht es aber eine tragfähige Begründung (Aufbewahrungspflicht, Art. 17 Abs. 3) und kurze Fristen. Die Entscheidung gehört dokumentiert und mit dem Datenschutz abgestimmt. Beim Index mit Klartext-Personenkennungen fällt das besonders ins Gewicht.
+Suchprozess als Hochwertziel. Er hält den privaten Index-Schlüssel, und jede Replica ist damit Sicherheitszone. Das ist ehrlich beschrieben. Die Schutzmaßnahmen (kein Shell-Zugang, signierte Anfragen, Replay-Schutz) sind gut. Der Replay-Schutz „einmal im Fenster“ braucht bei mehreren Replicas aber einen gemeinsamen Zustand, sonst gilt er nur pro Replica. Das steht nirgends.
+Algorithmen. Der Aussage-Prüfschlüssel wird für das Schreiben nur mit P-256 akzeptiert, obwohl RSA und P-384 sonst erlaubt sind. Das ist eine unnötige Inkonsistenz. Auch die Kombination aus HPKE und selbst gebauten Kontextfeldern sollte ein Kryptograf unabhängig begutachten.
+Mandantenwechsel und Sichtbarkeit. Bucketname, Objektzahl und Zeitpunkte verraten Aktivität. Das ist als Freigabe dokumentiert, aber der Deckverkehr ist standardmäßig aus.
+Dokumentationsstand. Es gibt kleine Unschärfen, etwa „Ein List über die Ablage“ und das veraltete Datum in schluessel.md (6. statt 7. November).
+Empfehlung
+Vor der Umsetzung sollten diese drei Dinge geklärt werden:
+
+ein formales Fehler- und Nebenläufigkeitsmodell für Belegung, Übernahme und Annahme, mit festgelegten Anforderungen an das Ziel (bedingte Schreibzugriffe),
+ein unabhängiges Kryptografie-Review des Wrap- und Bindungsdesigns,
+eine Abstimmung der Löschfristen mit dem Datenschutz.
+Danach lohnt sich ein kleiner Prototyp nur mit Gruppenstrom und Annahme, bevor Verzeichnis, Index und Summenindizes dazukommen.
