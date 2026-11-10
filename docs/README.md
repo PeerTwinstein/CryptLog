@@ -2,9 +2,10 @@
 
 Stand: 8. November 2026
 
-Arbeitsfassung der bisher abgestimmten Entscheidungen. Sie beschreibt, wie Audit-Logs mit Personenbezug abgelegt werden und wer sie wieder lesen kann.
 
 ## Dokumente
+
+Die [Testumgebung](testumgebung.md) ist die Anleitung zum Ausprobieren und keine Festlegung.
 
 - [Schlüssel und Zugehörigkeit](schluessel.md) — Schlüssel, Schlüsselspeicher, Verteilung, Verwaltung, Cache, Hinterlegen, Zugehörigkeit, Wechsel, Verlust, Kompromittierung, Grenze der Zusicherung
 - [Protokoll](protokoll.md) — Hüllenverschlüsselung, Ablage, Auffangstrom, Verkettung, sichtbare Metadaten
@@ -36,7 +37,7 @@ Audit-Logs enthalten personenbezogene Daten. Sie werden verschlüsselt abgelegt.
 - Der Suchprozess ist eine eigene Sicherheitszone. Er hält den privaten Index-Schlüssel und kann damit den Vorgangsindex vollständig öffnen: Personenkennungen, Vorgangsnummern, Zeitpunkte und die Zuordnung zu Strömen, ohne Logtext. Die Zone hat keine allgemeine Administrationsschnittstelle, keine interaktive Shell und keinen Export beliebiger Indexdaten. Jede Anfrage wird authentisiert, einzeln autorisiert und protokolliert. Authentisiert ist sie durch die Signatur des Aufrufschlüssels, den die Zugehörigkeitsaussage dieser Person nennt. Die Signatur der Aussage allein autorisiert den Aufruf nicht. Das Verfahren steht unter [Suche](ablage-und-lesen.md#suche).
 - Löschen ganzer Epochen nach einer Frist. Die Frist wird pro Mandant festgelegt und kann verlängert werden. Ein Eintrag, eine Person und ein Vorgang werden nicht gelöscht. Eine Person aus einer Gruppenepoche zu entfernen verlangte die Umschlüsselung dieser Epoche; die Plattform tut das nicht. Den Löschtag setzt der Rasterbeginn der Epoche. Am vorherigen UTC-Tag endet der Zugriff, die Segmente liegen noch. Am Löschtag entfernt der Dienst die Segmente. Das Verfahren steht unter [Löschen](ablage-und-lesen.md#löschen).
 
-## Festgelegter Stand
+## Funktionsübersicht
 
 - Ein KEK pro Mandant. Entschlüsselung nur im Werkzeug des Datenschutzbeauftragten. Zusätzlich ein Plattform-KEK, übergeben als Secret auf tmpfs, öffentlicher Schlüssel nur. Einziger Empfänger ist der Datenschutzbeauftragte der Plattform. Ohne dieses Secret startet der Schreibprozess nicht.
 - Einfacher Modus: verschlüsselter privater Schlüssel plus von der lokalen CA ausgestelltes Zertifikat. Sicherer Modus: nur ein geprüftes Zertifikat, privater Schlüssel bleibt beim Mandanten. Abgelegt und verwaltet wird beides über dieselbe Oberfläche des Mandanten. Der Modus ist eine Eigenschaft des Mandanten. Die Oberfläche erzeugt kein Schlüsselpaar, nimmt keine Passphrase an und zeigt den Fingerabdruck zur Quittierung, bevor der Schlüssel aktuell wird.

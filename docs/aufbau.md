@@ -18,6 +18,8 @@ cryptlog schreiben <datei>
 
 `cryptlog werkzeug` öffnet das Fenster über `fenster.Neu`. Der Suchprozess startet über `suchen.Start` und bleibt eine Bibliothek. Die Unit, das Image und das Chart aus dem [Betrieb](betrieb.md) liegen in `deploy/systemd`, im `Dockerfile` und in `deploy/cryptlog`.
 
+`cmd/testumgebung` legt eine lokale Umgebung mit Schlüsseln und drei Mandanten an. Die Schritte stehen in der [Testumgebung](testumgebung.md).
+
 ## Pakete
 
 Die Abhängigkeit läuft von den Bytefolgen nach außen. `protocol` kennt kein anderes Paket dieses Moduls. `crypt` kennt `protocol`. Darüber bauen Epoche, Strom, Abschluss, Schlüssel, Werkzeug, Schreibprozess, Suchprozess und Fenster.
