@@ -22,6 +22,91 @@ import (
 )
 
 func TestOeffnenDienst(t *testing.T) {
+	dir := umgebung(t)
+	dienst := dienstAus(t, dir)
+	ev := ereignis(fill(0x42), false)
+	roh, err := protocol.EreignisBytes(protocol.EreignisAufruf{
+		ID: ev.ID, Mandant: ev.Mandant, Zeit: ev.Zeit, Vorgang: ev.Vorgang, Personen: ev.Personen, Text: ev.Text,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(dienst.Prozess.Ereignisport())
+	defer srv.Close()
+	res, err := http.Post(srv.URL+"/ereignis", "application/octet-stream", bytes.NewReader(roh))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("ereignis %d %q", res.StatusCode, body)
+	}
+	best, err := protocol.ParseBestaetigt(body)
+	if err != nil || best.Event != ev.ID || best.Seq == 0 || best.Schluessel == "" {
+		t.Fatalf("%v %+v", err, best)
+	}
+	metrik := httptest.NewServer(dienst.Prozess.Metrik())
+	defer metrik.Close()
+	if code := holen(t, metrik.URL+"/ready"); code != http.StatusOK {
+		t.Fatalf("ready %d", code)
+	}
+	if code := holen(t, srv.URL+"/ready"); code != http.StatusNotFound {
+		t.Fatalf("ereignisport ready %d", code)
+	}
+}
+
+func TestDienstEigenesZiel(t *testing.T) {
+	dir := umgebung(t)
+	eigen := filepath.Join(dir, "eigen")
+	schreib(t, filepath.Join(dir, "mandanten", fill(0x11).Hex(), "ziel"), "ziel = platte\nwurzel = "+eigen+"\n")
+	dienst := dienstAus(t, dir)
+	if _, ok := dienst.Prozess.ziel.(*Wahl); !ok {
+		t.Fatalf("%T", dienst.Prozess.ziel)
+	}
+	ev := ereignis(fill(0x43), false)
+	roh, err := protocol.EreignisBytes(protocol.EreignisAufruf{
+		ID: ev.ID, Mandant: ev.Mandant, Zeit: ev.Zeit, Vorgang: ev.Vorgang, Personen: ev.Personen, Text: ev.Text,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(dienst.Prozess.Ereignisport())
+	defer srv.Close()
+	res, err := http.Post(srv.URL+"/ereignis", "application/octet-stream", bytes.NewReader(roh))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("ereignis %d %q", res.StatusCode, body)
+	}
+	eigenPlatte, err := OeffnenPlatte(eigen)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gemeinsam, err := OeffnenPlatte(filepath.Join(dir, "ziel"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	prefix := fill(0x11).Hex() + "/"
+	segEigen := zaehle(t, eigenPlatte, prefix)
+	segGemeinsam := zaehle(t, gemeinsam, prefix)
+	annahme := zaehle(t, gemeinsam, "annahme/")
+	if segEigen == 0 || segGemeinsam != 0 || annahme == 0 {
+		t.Fatalf("eigen=%d gemeinsam=%d annahme=%d", segEigen, segGemeinsam, annahme)
+	}
+}
+
+func umgebung(t *testing.T) string {
+	t.Helper()
 	dir := t.TempDir()
 	jetzt := time.Now().UTC()
 	bis := jetzt.Add(48 * time.Hour)
@@ -117,8 +202,12 @@ func TestOeffnenDienst(t *testing.T) {
 		"klasse = 262144\n"+
 		"gruppe = 15m\n"+
 		"sonstige = 15m\n")
+	return dir
+}
 
-	dienst, err := OeffnenDienst(konfig)
+func dienstAus(t *testing.T, dir string) *Dienst {
+	t.Helper()
+	dienst, err := OeffnenDienst(filepath.Join(dir, "konfig"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,40 +216,7 @@ func TestOeffnenDienst(t *testing.T) {
 		defer cancel()
 		_ = dienst.Prozess.Beenden(ctx)
 	})
-
-	ev := ereignis(fill(0x42), false)
-	roh, err := protocol.EreignisBytes(protocol.EreignisAufruf{
-		ID: ev.ID, Mandant: ev.Mandant, Zeit: ev.Zeit, Vorgang: ev.Vorgang, Personen: ev.Personen, Text: ev.Text,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	srv := httptest.NewServer(dienst.Prozess.Ereignisport())
-	defer srv.Close()
-	res, err := http.Post(srv.URL+"/ereignis", "application/octet-stream", bytes.NewReader(roh))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer res.Body.Close()
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if res.StatusCode != http.StatusOK {
-		t.Fatalf("ereignis %d %q", res.StatusCode, body)
-	}
-	best, err := protocol.ParseBestaetigt(body)
-	if err != nil || best.Event != ev.ID || best.Seq == 0 || best.Schluessel == "" {
-		t.Fatalf("%v %+v", err, best)
-	}
-	metrik := httptest.NewServer(dienst.Prozess.Metrik())
-	defer metrik.Close()
-	if code := holen(t, metrik.URL+"/ready"); code != http.StatusOK {
-		t.Fatalf("ready %d", code)
-	}
-	if code := holen(t, srv.URL+"/ready"); code != http.StatusNotFound {
-		t.Fatalf("ereignisport ready %d", code)
-	}
+	return dienst
 }
 
 func TestKonfigUnvollstaendig(t *testing.T) {

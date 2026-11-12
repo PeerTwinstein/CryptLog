@@ -86,6 +86,10 @@ func OeffnenDienst(pfad string) (*Dienst, error) {
 	if err != nil {
 		return nil, err
 	}
+	ziel, err = zieleAus(mandanten, ziel, art)
+	if err != nil {
+		return nil, err
+	}
 	loesch, err := optionDauer(werte, "loesch", 0)
 	if err != nil {
 		return nil, err
@@ -821,6 +825,8 @@ var konfigFelder = felder(
 var lageFelder = felder(
 	"name", "rahmen", "verzeichnis", "vorgang", "auffang", "einzel", "katalog", "kek", "pruef", "deck", "cache_seit",
 )
+
+var mandantZielFelder = felder("ziel", "endpunkt", "bucket", "region", "zugang", "geheimnis", "wurzel")
 
 var personFelder = felder("merkmal", "ablage", "bind", "kohorte", "von", "bis", "rolle", "finger", "signatur")
 

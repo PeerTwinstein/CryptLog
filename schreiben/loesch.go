@@ -31,17 +31,17 @@ func (p *Prozess) loeschlauf() {
 	p.naechsteLoesch = p.jetzt().Add(p.loeschzeit)
 	weg, ok := p.ziel.(Entfernen)
 	if !ok {
-		p.zielFehler[p.zielArt]++
+		p.zielFehl(nil)
 		return
 	}
 	epochen, abschluesse, err := p.loeschBild()
 	if err != nil {
-		p.zielFehler[p.zielArt]++
+		p.zielFehl(err)
 		return
 	}
 	lager := loeschLager{ziel: p.ziel, weg: weg, vermerke: p.vermerke}
 	if _, err := werkzeug.Loeschen(p.jetzt(), p.aufbewahrung, epochen, abschluesse, lager); err != nil {
-		p.zielFehler[p.zielArt]++
+		p.zielFehl(err)
 	}
 }
 

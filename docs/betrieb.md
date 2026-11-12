@@ -1,6 +1,6 @@
 # CryptLog — Betrieb
 
-Stand: 8. November 2026
+Stand: 12. November 2026
 
 Teil des [Konzepts Audit-Log-Verschlüsselung](README.md). Dieselbe Fassung des Programms als Betriebssystemdienst, als Container und als Helm-Chart. Bereitschaft, Beenden und die Metriken für Prometheus.
 
@@ -34,7 +34,7 @@ Die Uhr ist UTC. Die Ereignisschnittstelle und die Suchschnittstelle bleiben die
 
 Geheimnisse stehen nicht in dieser Datei. `plattform`, `index` und `signatur` nennen Dateien, ebenso `zugang` und `geheimnis`, wenn das Ziel S3 ist. `plattform` und `index` sind Zertifikate. Der Fingerabdruck, mit dem der Prozess wickelt, ist SHA-256 über das Zertifikat. `signatur` ist der private Integritätsschlüssel als unverschlüsseltes PKCS#8, P-256. Er steht für das HSM. Der private Schlüssel eines KEK liegt in keiner dieser Dateien.
 
-`ziel` ist `platte` oder `s3`. Bei `platte` nennt `wurzel` das Verzeichnis. Bei `s3` nennen `endpunkt`, `bucket` und `region` das Ziel. `ereignis` und `metrik` sind die beiden Adressen und verschieden. `spool` ist das Verzeichnis der Instanz. `instanz` ist ihre Kennung. `mandanten` ist das Verzeichnis der Mandanten. Darunter trägt jeder Mandant seinen Namen als 32 Hexzeichen und darin `lage`, `katalog` und `personen`. `lage` nennt Name, Rahmen, die Ablagen, den KEK, den Prüfschlüssel, `deck` und `cache_seit`. `katalog` nennt je Zeile Rolle, Ablage, Bindung, Kohorte oder `-` und `an` oder `aus`. Eine Person nennt Merkmal, Ablage, Bindung, Kohorte, Gültigkeit und die 64 Byte der Signatur in Hex.
+`ziel` ist `platte` oder `s3`. Bei `platte` nennt `wurzel` das Verzeichnis. Bei `s3` nennen `endpunkt`, `bucket` und `region` das Ziel. `ereignis` und `metrik` sind die beiden Adressen und verschieden. `spool` ist das Verzeichnis der Instanz. `instanz` ist ihre Kennung. `mandanten` ist das Verzeichnis der Mandanten. Darunter trägt jeder Mandant seinen Namen als 32 Hexzeichen und darin `lage`, `katalog` und `personen`. Die Datei `ziel` liegt nur, wenn der Mandant vom gemeinsamen Ziel abweicht. `ziel = s3` nennt `endpunkt`, `bucket`, `region`, `zugang` und `geheimnis`. `ziel = platte` nennt `wurzel`. Die Pfade gelten ab dem Mandantenverzeichnis. Der Bucketname `plattform` ist ausgeschlossen. Dasselbe Ziel wie das gemeinsame lehnt der Start ab. Das Chart lässt diese Datei im Anspruch der Mandanten und legt Zugang und Geheimnis nicht in das Secret des Prozesses. `lage` nennt Name, Rahmen, die Ablagen, den KEK, den Prüfschlüssel, `deck` und `cache_seit`. `katalog` nennt je Zeile Rolle, Ablage, Bindung, Kohorte oder `-` und `an` oder `aus`. Eine Person nennt Merkmal, Ablage, Bindung, Kohorte, Gültigkeit und die 64 Byte der Signatur in Hex.
 
 `spool_grenze` und `frist` haben keine Vorgabe. Die übrigen Schwellen beginnen bei den Ausgangswerten und lassen sich mit `puffer`, `puffer_warte`, `segment`, `segment_warte`, `klasse`, `gruppe`, `einzel` und `sonstige` setzen. Eine Schwelle außerhalb der Grenzen lehnt den Start ab. `loesch` ist der Abstand der Löschläufe. `0` lässt sie aus. Ist er größer, nennen `aufbewahrung` die Frist als Vielfaches von 24 Stunden und `vermerke` das Verzeichnis des Bestätigungsspeichers. `version` und `digest` erscheinen nur gemeinsam in `cryptlog_build_info`.
 
@@ -95,12 +95,12 @@ Die Metriken sind eine eigene Freigabe an den Betrieb. Sie erweitern die [sichtb
 | `cryptlog_ready` | Gauge | — | 1, solange `/ready` erfolgreich ist, sonst 0 |
 | `cryptlog_events_unaccepted_total` | Zähler | `grund` | Nicht angenommene Ereignisse. `grund` ist `mandant_unbekannt`, `spool` oder `belegung` |
 | `cryptlog_kek_fehlt_total` | Zähler | `mandant_id` | Ereignisse, die in die Dead Letter Box gingen, weil kein aktueller Mandanten-KEK lesbar ist. Die Kennung, nicht der Name |
-| `cryptlog_target_errors_total` | Zähler | `ziel` | Fehlgeschlagene Schreibversuche am Ziel. `ziel` ist `s3` oder `platte` |
+| `cryptlog_target_errors_total` | Zähler | `ziel` | Fehlgeschlagene Schreibversuche am Ziel. `ziel` ist `s3` oder `platte` und nennt den Speicher, der den Fehler gemeldet hat. Ein Mandantenziel zählt mit seiner Art |
 | `cryptlog_spool_bytes` | Gauge | — | Belegte Bytes des Spools |
 | `cryptlog_spool_limit_bytes` | Gauge | — | Konfigurierte Obergrenze |
 | `cryptlog_cache_age_seconds` | Gauge | `mandant_id` | Alter des Cache-Eintrags dieses Mandanten |
 | `cryptlog_instance_lease_seconds` | Gauge | — | Verbleibende Frist des Instanzobjekts |
-| `cryptlog_accept_seconds` | Histogramm | `ziel` | Dauer von der Entgegennahme bis zur Annahme |
+| `cryptlog_accept_seconds` | Histogramm | `ziel` | Dauer von der Entgegennahme bis zur Annahme. `ziel` bleibt die Art des gemeinsamen Ziels |
 | `cryptlog_segment_seconds` | Histogramm | `ziel` | Dauer des Segment-Schreibens |
 | `cryptlog_events_accepted_total` | Zähler | `mandant_id`, `rolle` | Angenommene Ereignisse |
 | `cryptlog_epochs_open` | Gauge | `mandant_id`, `rolle` | Offene Epochen, als Anzahl |

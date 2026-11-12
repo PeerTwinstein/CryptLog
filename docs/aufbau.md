@@ -1,6 +1,6 @@
 # CryptLog — Aufbau des Programms
 
-Stand: 8. November 2026
+Stand: 12. November 2026
 
 Teil des [Konzepts Audit-Log-Verschlüsselung](README.md). Dieses Dokument sagt, welches Paket welchen Teil des Konzepts ausführt. Die Festlegungen selbst stehen in [Protokoll](protokoll.md), [Ablage und Lesen](ablage-und-lesen.md), [Schlüssel](schluessel.md) und [Betrieb](betrieb.md).
 
@@ -48,7 +48,7 @@ Die Abhängigkeit läuft von den Bytefolgen nach außen. `protocol` kennt kein a
 
 Der Puffer geht bei Größe oder Wartezeit in den Spool, Ausgang 1 MiB oder 100 Millisekunden. Der Fsync des Spools ist die lokale Folge, nicht die Annahme. Ist der Spool an der Obergrenze, nimmt der Prozess nichts weiteres an.
 
-Am Ziel schreibt `abschluss.Ablegen` in dieser Reihenfolge: offene Belegung, Vorbereitung, Segmente, erneute Lesung der offenen Belegung, Annahme, bedingter Tausch der Belegung auf angenommen. Dieselben Bytes unter demselben Schlüssel gelten als wiederholtes Schreiben. Ein anderer Inhalt wird nicht ersetzt. `S3.Ersetzen` bindet den Tausch an den vorliegenden Inhalt. `Platte` schließt jedes Schreiben mit Fsync; die Sperre gilt innerhalb dieses Prozesses.
+Am Ziel schreibt `abschluss.Ablegen` in dieser Reihenfolge: offene Belegung, Vorbereitung, Segmente, erneute Lesung der offenen Belegung, Annahme, bedingter Tausch der Belegung auf angenommen. Dieselben Bytes unter demselben Schlüssel gelten als wiederholtes Schreiben. Ein anderer Inhalt wird nicht ersetzt. `S3.Ersetzen` bindet den Tausch an den vorliegenden Inhalt. `Platte` schließt jedes Schreiben mit Fsync; die Sperre gilt innerhalb dieses Prozesses. `Wahl` leitet einen Segmentsschlüssel an das Ziel aus der Datei `ziel` dieses Mandanten. Fehlt die Datei, bleibt der Schlüssel im gemeinsamen Ziel. `belegt/`, `instanz/`, `vorbereitung/` und `annahme/` bleiben dort. Eine ältere Fassung im gemeinsamen Ziel wird gelesen und gelöscht und nicht kopiert.
 
 Nach der Annahme reicht der Prozess das vom Integritätsschlüssel signierte Manifest beim Empfänger ein, wenn `Konfig.Einreichen` gesetzt ist. Der Löschlauf in `schreiben` ruft `werkzeug.Loeschen`, sobald `loesch` größer als null ist, und legt den Vermerk über `Vermerke` ab.
 

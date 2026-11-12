@@ -1,12 +1,18 @@
 # CryptLog — Ablage und Lesen
 
-Stand: 8. November 2026
+Stand: 12. November 2026
 
 Teil des [Konzepts Audit-Log-Verschlüsselung](README.md). Speicherziel, Wiederanlauf, Löschen, Suche, Prüfung, Verzeichnis, Vorgangsindex, Summenindex, Entschlüsselung und die Oberfläche des Werkzeugs.
 
 ## Speicherziel
 
-Verschlüsselte Ströme liegen vorrangig in einem S3-kompatiblen Objektspeicher. Dieselbe Ablage kann stattdessen auf der Platte liegen. Das Ziel wird pro Mandant festgelegt. Voreinstellung ist S3. Pro Mandant kann ein eigener Bucket entstehen. Was Bucketname und `mandant_id` sichtbar machen, steht unter [Sichtbare Metadaten](protokoll.md#sichtbare-metadaten). Der Bucket `plattform` ist reserviert und gehört zu keinem Mandanten.
+Verschlüsselte Ströme liegen vorrangig in einem S3-kompatiblen Objektspeicher. Dieselbe Ablage kann stattdessen auf der Platte liegen. Das gemeinsame Ziel gilt für jeden Mandanten, dessen Lage kein eigenes Ziel nennt. Voreinstellung ist S3. Was Bucketname und `mandant_id` sichtbar machen, steht unter [Sichtbare Metadaten](protokoll.md#sichtbare-metadaten). Der Bucket `plattform` ist reserviert und gehört zu keinem Mandanten. Ein Mandantenziel trägt diesen Namen nicht.
+
+Ein eigenes Ziel steht in der Datei `ziel` der Lage. Bei S3 nennt sie Endpunkt, Bucket, Region, Zugang und Geheimnis. Bei der Platte nennt sie die Wurzel. Zugang und Geheimnis sind Dateien und stehen nicht in der Lage. Dasselbe Ziel wie das gemeinsame lehnt der Start ab.
+
+Segmente dieses Mandanten liegen in seinem Ziel. Dazu gehört die Dead Letter Box bei fehlendem Mandanten-KEK, gewrappt mit dem Plattform-KEK. Der Objektschlüssel bleibt `{mandant_id}/{ablage_id}/{epoch_id}/{segment_nr}`. Belegung, Instanzobjekt, Vorbereitung und Annahme bleiben im gemeinsamen Ziel. Ein Abschluss kann Segmente mehrerer Mandanten nennen. Diese Objekte gehören zur Instanz.
+
+Ein Segment, das vor dem eigenen Ziel schon im gemeinsamen Ziel liegt, bleibt dort. Derselbe Inhalt unter demselben Schlüssel ist ein wiederholtes Schreiben und wird nicht kopiert. Ein anderer Inhalt wird nicht ersetzt. Lesen und Löschen suchen das Segment im eigenen Ziel und danach im gemeinsamen Ziel. Das Werkzeug nennt in der Verbindung das Ziel, dessen Segmente es öffnet. Der Suchprozess liest und schreibt die Indexsegmente über dieselbe Verteilung.
 
 Der Dienst verschlüsselt jeden Eintrag, bevor er ihn weitergibt. Im Puffer, im Spool und in den Segmenten steht nur Ciphertext. Belegung, Vorbereitung und Annahme nennen keine Person, keine Vorgangsnummer und keinen Logtext. Die Schreibschwellen verlängern den Klartext-DEK nicht. Er bleibt an die Epoche gebunden und wird mit ihrem Ende verworfen.
 
@@ -20,7 +26,7 @@ Bis dahin bleiben drei Stufen auseinander.
 
 **Lokal festgehalten.** Der Abschluss hängt die noch offenen Ereignisse an den lokalen Spool und schließt diesen Schreibvorgang mit einem Fsync ab. Danach kann dieselbe Instanz den Abschluss nach einem Prozessabsturz auf diesem Knoten fortsetzen. Der Seitencache ohne Fsync gilt nicht als lokal festgehalten. Der Fsync ist die lokale Persistenz des Knotens. Er ist nicht die Annahme. Der Verlust des Knotens nimmt den Spool mit. Eine Antwort an den Aufrufer gibt es an dieser Stelle nicht.
 
-**Angenommen.** Die Instanz schreibt die Bestandteile am Ziel, prüft ihre Hashes und schreibt danach das Annahmeobjekt. Erst wenn dieses Objekt am Ziel dauerhaft ist, gelten die darin genannten Ereignisse als angenommen, und erst dann antwortet der Dienst dem Aufrufer. Das Ziel überdauert den schreibenden Knoten. Im S3-Ziel ist das der Bucket. Auf der Platte ist das ein Speicher außerhalb der lokalen Platte des Schreibprozesses. Ein Fsync auf dieser lokalen Platte bleibt der Spool.
+**Angenommen.** Die Instanz schreibt die Bestandteile am Ziel, prüft ihre Hashes und schreibt danach das Annahmeobjekt. Erst wenn dieses Objekt am Ziel dauerhaft ist, gelten die darin genannten Ereignisse als angenommen, und erst dann antwortet der Dienst dem Aufrufer. Das Ziel überdauert den schreibenden Knoten. Im gemeinsamen S3-Ziel ist das der Bucket der Annahme. Segmente eines eigenen Mandantenziels überdauern in diesem Ziel. Auf der Platte ist das ein Speicher außerhalb der lokalen Platte des Schreibprozesses. Ein Fsync auf dieser lokalen Platte bleibt der Spool.
 
 Der Abschluss tritt ein, sobald der noch nicht abgeschlossene Puffer eine Grenze erreicht:
 
@@ -43,7 +49,7 @@ Ein geschriebenes Segment wird nicht ersetzt. Ein wiederholtes Schreiben derselb
 
 ### S3
 
-Ein Eintrag wird nicht als eigenes Objekt geschrieben. Angenommen ist er mit dem Annahmeobjekt im Bucket. Aus dem Spool wird ein Segment hochgeladen, sobald eine der Bedingungen eintritt:
+Ein Eintrag wird nicht als eigenes Objekt geschrieben. Angenommen ist er mit dem Annahmeobjekt im gemeinsamen Ziel. Das Segment liegt im Ziel des Mandanten. Aus dem Spool wird ein Segment hochgeladen, sobald eine der Bedingungen eintritt:
 
 - die konfigurierte Datengröße der noch nicht hochgeladenen Einträge ist erreicht
 - die konfigurierte Wartezeit seit dem ältesten noch nicht hochgeladenen Eintrag ist abgelaufen
@@ -277,7 +283,7 @@ Der Löschtag ist der UTC-Tag, in den der Rasterbeginn plus die aktuelle Frist f
 
 Eine Verlängerung ändert die aktuelle Frist, bevor gelöscht wird. Löschtag und Zugriffsschnitt entstehen daraus und aus dem Rasterbeginn neu. Das gilt für jede Epoche, die noch vollständig vorliegt und keinen Löschvermerk trägt. Ein Löschdatum am Objekt gibt es nicht. Bereits entfernte Segmente stellt die Verlängerung nicht wieder her. Eine Verlängerung, die nur einen Teil der Segmente erreicht, ist keine Verlängerung dieser Epoche.
 
-Auf der Platte und im S3-Ziel löscht derselbe Vorgang des Dienstes. Er rechnet mit der aktuellen Frist und dem Rasterbeginn. Ist der Löschtag erreicht und liegt die Epoche noch vollständig und ohne Löschvermerk vor, reicht der Dienst den Löschvermerk beim Empfänger ein und entfernt danach alle Segmente. Auf der Platte geschieht das in einem Schritt. Im S3-Ziel entfernt derselbe Vorgang die Segmente unter dem Präfix der Epoche. In welcher Reihenfolge sie an diesem Tag wegfallen, bleibt unsichtbar, weil der Zugriff am Vortag geendet hat. Eine ältere Datei oder ein älteres Objekt derselben Epoche entfernt er nicht voraus.
+Auf der Platte und im S3-Ziel löscht derselbe Vorgang des Dienstes. Er rechnet mit der aktuellen Frist und dem Rasterbeginn. Ist der Löschtag erreicht und liegt die Epoche noch vollständig und ohne Löschvermerk vor, reicht der Dienst den Löschvermerk beim Empfänger ein und entfernt danach alle Segmente. Auf der Platte geschieht das in einem Schritt. Im S3-Ziel entfernt derselbe Vorgang die Segmente unter dem Präfix der Epoche. Ein eigenes Ziel gibt die Segmente dort heraus. Liegen noch Segmente derselben Epoche im gemeinsamen Ziel, entfernt derselbe Vorgang sie dort. In welcher Reihenfolge sie an diesem Tag wegfallen, bleibt unsichtbar, weil der Zugriff am Vortag geendet hat. Eine ältere Datei oder ein älteres Objekt derselben Epoche entfernt er nicht voraus.
 
 Der Löschvermerk liegt neben der Epochenbestätigung, außerhalb des Log-Buckets. Der Speicher hängt ihn an. Er ersetzt die Bestätigung nicht und löscht sie nicht. Der Vermerk nennt den Löschtag. Kommt der Vorgang nach dem Vermerk nicht zu Ende, setzt der nächste Lauf bei dieser Epoche fort und entfernt die restlichen Segmente. Eine Verlängerung nach dem Vermerk stellt die Epoche nicht wieder her. Das Werkzeug öffnet sie nicht mehr.
 

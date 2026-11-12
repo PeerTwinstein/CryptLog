@@ -1,6 +1,6 @@
 # CryptLog — Testumgebung
 
-Stand: 10. November 2026
+Stand: 12. November 2026
 
 Anleitung zum Ausprobieren. Die Festlegung bleibt in den übrigen Dokumenten, beginnend bei [README.md](README.md). Der Befehl liegt in `cmd/testumgebung`. Er legt Schlüssel, drei Mandanten und die Verbindung des Werkzeugs lokal an. Das Verzeichnis `testumgebung/` ist von der Versionsverwaltung ausgenommen.
 
@@ -127,3 +127,20 @@ pfad=
 Region, Zugang und Geheimnis trägt man im Fenster ein, vor dem Entsperren. Die Verbindung speichert sie nicht. Das Geheimnis bleibt in der Sitzung. Den Bestätigungsspeicher füllt das Fenster bei einem S3-Ziel nicht von selbst. Dort steht der Pfad des Verzeichnisses `bestaetigung` dieser Umgebung.
 
 Die Proben aus `-pruefen` liegen im Verzeichnis `ziel`, weil der Befehl sie gegen die gerade geschriebene Plattenkonfiguration annimmt. Im Bucket liegen sie damit nicht. Für den Bucket `konfig` und die Verbindungen umstellen, `schreiben` starten und die Ereignisse an `POST /ereignis` senden.
+
+## Eigenes Ziel eines Mandanten
+
+Die Datei `ziel` im Verzeichnis des Mandanten nennt ein abweichendes Ziel. Fehlt sie, bleibt der Mandant im Ziel aus `konfig`.
+
+```
+ziel = s3
+endpunkt = https://s3.mandant.example
+bucket = mandant-logs
+region = eu-central-1
+zugang = zugang
+geheimnis = geheimnis
+```
+
+`zugang` und `geheimnis` liegen im Mandantenverzeichnis. Der Bucketname `plattform` ist ausgeschlossen. Endpunkt und Bucket des gemeinsamen Ziels lehnt der Start ab. `ziel = platte` nennt stattdessen `wurzel`.
+
+Die Verbindung des Empfängers nennt dieses Ziel. Segmente, die schon im gemeinsamen Ziel liegen, bleiben dort, bis ihre Epoche gelöscht wird. Dieselben Bytes schreibt der Prozess nicht ein zweites Mal. Belegung, Instanzobjekt, Vorbereitung und Annahme bleiben im gemeinsamen Ziel.

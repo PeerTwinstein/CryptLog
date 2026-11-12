@@ -1004,7 +1004,7 @@ func (p *Prozess) eine(g *gespult) error {
 			if errors.Is(err, abschluss.ErrBelegung) || errors.Is(err, abschluss.ErrObjekt) {
 				return p.verwerfen(g, err)
 			}
-			p.zielFehler[p.zielArt]++
+			p.zielFehl(err)
 			return err
 		}
 	}
@@ -1015,7 +1015,7 @@ func (p *Prozess) eine(g *gespult) error {
 		if errors.Is(err, abschluss.ErrObjekt) || errors.Is(err, abschluss.ErrBelegung) || errors.Is(err, abschluss.ErrSegment) {
 			return p.verwerfen(g, err)
 		}
-		p.zielFehler[p.zielArt]++
+		p.zielFehl(err)
 		return err
 	}
 	switch befund {
@@ -1168,6 +1168,23 @@ func (p *Prozess) abbrechen(err error) {
 	}
 }
 
+type mitZielArt interface {
+	ZielArt() string
+}
+
+// zielFehl zählt den Fehler unter der Art des Speichers, der ihn gemeldet hat.
+// Ein Mandantenziel trägt seine eigene Art. Sonst gilt das gemeinsame Ziel.
+func (p *Prozess) zielFehl(err error) {
+	art := p.zielArt
+	var mit mitZielArt
+	if errors.As(err, &mit) {
+		if a := mit.ZielArt(); a == "s3" || a == "platte" {
+			art = a
+		}
+	}
+	p.zielFehler[art]++
+}
+
 func (p *Prozess) fristSetzen() error {
 	jetzt := p.jetzt()
 	if !p.naechsteFrist.IsZero() && jetzt.Before(p.naechsteFrist) {
@@ -1178,7 +1195,7 @@ func (p *Prozess) fristSetzen() error {
 		return protocol.ErrLength
 	}
 	if err := abschluss.FristSetzen(p.ziel, p.instanz, uint64(ms)); err != nil {
-		p.zielFehler[p.zielArt]++
+		p.zielFehl(err)
 		return err
 	}
 	p.fristEnde = jetzt.Add(p.schwellen.Frist)

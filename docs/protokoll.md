@@ -1,6 +1,6 @@
 # CryptLog — Protokoll
 
-Stand: 7. November 2026
+Stand: 12. November 2026
 
 Teil des [Konzepts Audit-Log-Verschlüsselung](README.md). Hüllenverschlüsselung, Ablage, Auffangstrom, Verkettung und sichtbare Metadaten.
 
@@ -250,7 +250,7 @@ Ein List über `{mandant_id}/{ablage_id}/` liefert die Epochen dieser Ablage in 
 
 Im Bucket `plattform` ist `mandant_id` die 16 Byte der ASCII-Zeichenfolge `plattform`, aufgefüllt mit Nullbytes. Der Bucketname `plattform` bleibt.
 
-Ein eigener Bucket je Mandant trägt den Mandanten im Bucketnamen. Die Objektmenge und die Schreibzeitpunkte dieses Buckets sind die Aktivität dieses Mandanten. Ein gemeinsamer Bucket führt jeden Mandanten unter seiner `mandant_id`. Sichtbar ist die Aktivität dieser Kennung. Den Namen liefert der Schlüsselspeicher.
+Ein eigener Bucket je Mandant trägt den Mandanten im Bucketnamen. Die Objektmenge und die Schreibzeitpunkte dieses Buckets sind die Aktivität dieses Mandanten. Ein gemeinsamer Bucket führt jeden Mandanten unter seiner `mandant_id`. Sichtbar ist die Aktivität dieser Kennung. Den Namen liefert der Schlüsselspeicher. Das eigene Ziel eines Mandanten ist dieser Bucket oder diese Wurzel. `belegt/`, `instanz/`, `vorbereitung/` und `annahme/` bleiben im gemeinsamen Ziel.
 
 ### Stromkatalog
 
