@@ -2,7 +2,7 @@
 
 Stand: 12. November 2026
 
-Anleitung zum Ausprobieren. Die Festlegung bleibt in den übrigen Dokumenten, beginnend bei [README.md](README.md). Der Befehl liegt in `cmd/testumgebung`. Er legt Schlüssel, drei Mandanten und die Verbindung des Werkzeugs lokal an. Das Verzeichnis `testumgebung/` ist von der Versionsverwaltung ausgenommen.
+Anleitung zum Ausprobieren. Die Festlegung bleibt in den übrigen Dokumenten, beginnend bei [README.md](README.md). Namen wie Epoche und KEK stehen im [Glossar](glossar.md). Der Befehl liegt in `cmd/testumgebung`. Er legt Schlüssel, drei Mandanten und die Verbindung des Werkzeugs lokal an. Das Verzeichnis `testumgebung/` ist von der Versionsverwaltung ausgenommen.
 
 Die angelegte Umgebung schreibt auf die Platte. Einen S3-Speicher stellt man selbst und stellt das Ziel danach um. Das steht unter [Eigenes S3](#eigenes-s3).
 

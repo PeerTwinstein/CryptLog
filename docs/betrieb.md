@@ -2,7 +2,7 @@
 
 Stand: 12. November 2026
 
-Teil des [Konzepts Audit-Log-Verschlüsselung](README.md). Dieselbe Fassung des Programms als Betriebssystemdienst, als Container und als Helm-Chart. Bereitschaft, Beenden und die Metriken für Prometheus.
+Teil des [Konzepts Audit-Log-Verschlüsselung](README.md). Dieselbe Fassung des Programms als Betriebssystemdienst, als Container und als Helm-Chart. Bereitschaft, Beenden und die Metriken für Prometheus. Namen, die hier nur kurz vorkommen, stehen im [Glossar](glossar.md).
 
 ## Programm
 

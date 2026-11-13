@@ -2,7 +2,7 @@
 
 Stand: 12. November 2026
 
-Teil des [Konzepts Audit-Log-Verschlüsselung](README.md). Speicherziel, Wiederanlauf, Löschen, Suche, Prüfung, Verzeichnis, Vorgangsindex, Summenindex, Entschlüsselung und die Oberfläche des Werkzeugs.
+Teil des [Konzepts Audit-Log-Verschlüsselung](README.md). Speicherziel, Wiederanlauf, Löschen, Suche, Prüfung, Verzeichnis, Vorgangsindex, Summenindex, Entschlüsselung und die Oberfläche des Werkzeugs. Die kurzen Namen stehen im [Glossar](glossar.md).
 
 ## Speicherziel
 

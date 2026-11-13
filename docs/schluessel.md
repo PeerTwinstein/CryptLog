@@ -2,7 +2,7 @@
 
 Stand: 8. November 2026
 
-Teil des [Konzepts Audit-Log-Verschlüsselung](README.md). Schlüssel, Schlüsselspeicher, Verteilung, Verwaltung, Cache, Hinterlegen des KEK, Zugehörigkeit, Wechsel, Verlust, Kompromittierung und die Grenze der Zusicherung.
+Teil des [Konzepts Audit-Log-Verschlüsselung](README.md). Schlüssel, Schlüsselspeicher, Verteilung, Verwaltung, Cache, Hinterlegen des KEK, Zugehörigkeit, Wechsel, Verlust, Kompromittierung und die Grenze der Zusicherung. Die kurzen Namen stehen im [Glossar](glossar.md).
 
 ## Schlüssel
 

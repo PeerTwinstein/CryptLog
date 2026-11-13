@@ -2,7 +2,7 @@
 
 Stand: 12. November 2026
 
-Teil des [Konzepts Audit-Log-Verschlüsselung](README.md). Hüllenverschlüsselung, Ablage, Auffangstrom, Verkettung und sichtbare Metadaten.
+Teil des [Konzepts Audit-Log-Verschlüsselung](README.md). Hüllenverschlüsselung, Ablage, Auffangstrom, Verkettung und sichtbare Metadaten. Die kurzen Namen stehen im [Glossar](glossar.md).
 
 ## Hüllenverschlüsselung
 

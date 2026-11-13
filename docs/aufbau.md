@@ -2,7 +2,7 @@
 
 Stand: 12. November 2026
 
-Teil des [Konzepts Audit-Log-Verschlüsselung](README.md). Dieses Dokument sagt, welches Paket welchen Teil des Konzepts ausführt. Die Festlegungen selbst stehen in [Protokoll](protokoll.md), [Ablage und Lesen](ablage-und-lesen.md), [Schlüssel](schluessel.md) und [Betrieb](betrieb.md).
+Teil des [Konzepts Audit-Log-Verschlüsselung](README.md). Dieses Dokument sagt, welches Paket welchen Teil des Konzepts ausführt. Die Festlegungen selbst stehen in [Protokoll](protokoll.md), [Ablage und Lesen](ablage-und-lesen.md), [Schlüssel](schluessel.md) und [Betrieb](betrieb.md). Die Namen der Ablage stehen im [Glossar](glossar.md).
 
 Das Modul heißt `cryptlog`. `go doc` an einem Paket zeigt die öffentlichen Namen in dem Wortlaut, den der Quelltext darüber setzt.
 
